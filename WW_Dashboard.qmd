@@ -85,7 +85,7 @@ world <- world %>%
 #| label: world-map-setup
 #| message: false
 #| warning: false
-mag_pal <- colorBin("inferno", domain = 1:8, bins = c(0:5, 8))
+
 
 world_map <- subset(world, sov_a3 != 'ATA') |> 
   leaflet() |> 
