@@ -1,0 +1,151 @@
+---
+title: "SEVIS_Dashboard"
+format: dashboard
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+```{r}
+install.packages("tidyverse")
+install.packages("fmsb")
+install.packages("duckdb")
+install.packages("DBI")
+install.packages("duckplyr")
+install.packages("tidytuesdayR")
+install.packages("googledrive")
+install.packages("googlesheets4")
+library(tidyverse)
+library(see)
+library(duckdb)
+library(DBI)
+library(duckplyr)
+library(tidytuesdayR)
+library(googledrive)
+library(googlesheets4)
+
+
+tuesdata <- tidytuesdayR::tt_load(2024, week = 51)
+spells <- tuesdata$spells
+
+all_spells <- spells |> 
+  select(4:11, 
+         concentration, 
+         ritual, 
+         material_component, 
+         somatic_component, 
+         verbal_component, 
+         reaction, 
+         bonus_action) |> 
+  pivot_longer(cols = 1:8, names_to = 'class', values_to = 'castable') |> 
+  mutate(castable = if_else(castable == TRUE, 1, 0),
+         cast_concentration = if_else(concentration == TRUE & castable == TRUE, 1, 0),
+         cast_ritual = if_else(ritual == TRUE & castable == TRUE, 1, 0),
+         cast_material_component = if_else(material_component == TRUE & castable == TRUE, 1, 0),
+         cast_somatic_component = if_else(somatic_component == TRUE & castable == TRUE, 1, 0),
+         cast_verbal_component = if_else(verbal_component == TRUE & castable == TRUE, 1, 0),
+         cast_reaction = if_else(reaction == TRUE & castable == TRUE, 1, 0),
+         cast_bonus_action = if_else(bonus_action == TRUE & castable == TRUE, 1, 0)) |> 
+  group_by(class) |> 
+  summarise(castable = sum(castable),
+            cast_concentration = sum(cast_concentration),
+            cast_ritual = sum(cast_ritual),
+            cast_material_component = sum(cast_material_component),
+            cast_somatic_component = sum(cast_somatic_component),
+            cast_verbal_component = sum(cast_verbal_component),
+            cast_reaction = sum(cast_reaction),
+            cast_bonus_action = sum(cast_bonus_action),
+            ratio_conc = sum(cast_concentration)/sum(castable),
+            ratio_rit = sum(cast_ritual)/sum(castable),
+            ratio_mat = sum(cast_material_component)/sum(castable),
+            ratio_som = sum(cast_somatic_component)/sum(castable),
+            ratio_verb = sum(cast_verbal_component)/sum(castable),
+            ratio_react = sum(cast_reaction)/sum(castable),
+            ratio_bonus = sum(cast_bonus_action)/sum(castable)) |> 
+  ungroup()
+
+all_spells_plot <- all_spells |> select(class, 2:9) |> pivot_longer(cols = 2:9, names_to = 'name', values_to = 'value')
+
+ggplot2::ggplot(all_spells, aes(x = factor(class), y = cast_concentration, fill = interaction(cast_concentration, ratio_conc))) +
+  geom_polygon() +
+  theme_radar() +
+  scale_fill_discrete(name = "Class") +
+  labs(x = "", y = "")
+
+ggplot(
+  all_spells |> 
+    select(class, 10:16) |> 
+    pivot_longer(cols = 2:8, names_to = 'name', values_to = 'value') |> 
+    # filter(class == 'wizard') |> 
+    filter(name == 'ratio_react') |>
+    arrange(desc(class)),
+  aes(
+    x = class,
+    y = value,
+    color = name,
+    group = name,
+    fill = name
+  )
+) +
+  geom_polygon(linewidth = 1, alpha = 0.1) +
+  coord_radar() +
+  theme_radar_dark()
+
+```
+
+```{r}
+
+sevis_data_download <- googlesheets4::read_sheet('1SwpHoNYX2ZC7vYgbMJJqI5ByEqPfdO4lsg7Wcfom4Y0')
+
+sevis_data_download_initial <- sevis_data_download |> 
+  filter(`SEVIS Status` == 'INITIAL')
+
+sevis_data_download_initial_visa <- sevis_data_download_initial |> 
+  filter(!is.na(`Visa Issuance Date`))
+
+sevis_data_download_active <- sevis_data_download |> 
+  filter(`SEVIS Status` == 'ACTIVE')
+
+sevis_data_download_completed <- sevis_data_download |> 
+  filter(`SEVIS Status` == 'COMPLETED')
+
+
+ggplot(
+  all_spells |> 
+    select(class, 10:16) |> 
+    pivot_longer(cols = 2:7, names_to = 'name', values_to = 'value') |> 
+    # filter(class == 'wizard') |> 
+    arrange(desc(name)),
+  aes(
+    x = name,
+    y = value,
+    color = class,
+    group = class,
+    fill = class
+  )
+) +
+  geom_polygon(linewidth = 1, alpha = 0.1) +
+  coord_radar(start = -pi / 5)+
+  theme_radar_dark()
+
+
+theme_radar_dark(
+  base_size = 11,
+  base_family = "",
+  plot.title.size = 12,
+  plot.title.face = "plain",
+  plot.title.space = 15,
+  legend.position = "right",
+  axis.title.space = 15,
+  legend.title.size = 11,
+  legend.text.size = 10,
+  axis.title.size = 11,
+  axis.title.face = "plain",
+  axis.text.size = 10,
+  axis.text.angle = NULL,
+  tags.size = 11,
+  tags.face = "plain"
+)
+
+```

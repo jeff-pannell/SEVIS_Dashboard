@@ -1,0 +1,235 @@
+---
+title: Bilbo Baggins ISSS Dashboard
+author: Jeff Pannell
+format: 
+  dashboard:
+    orientation: columns
+    theme: sandstone
+echo: false
+warning: false
+message: false
+---
+```{r}
+#| message: false
+#| label: load-packages
+#| echo: false
+#| warning: false
+library(tidyverse)
+library(here)
+library(sf)
+library(leaflet)
+library(gt)
+library(see)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(arrow)
+library(janitor)
+```
+```{r}
+#| label: load-prep-data
+#| message: false
+#| warning: false
+#| echo: false
+
+
+#### Loading sevis data from the parquet files ####
+sevis_data_download <- read_parquet(here("data/sevis_data_download.parquet"))
+sevis_country_codes <- read_parquet(here("data/sevis_country_codes.parquet")) |> 
+  clean_names()
+
+
+sevis_data_download_initial <- sevis_data_download |> 
+  filter(sevis_status == 'INITIAL')
+
+sevis_data_download_initial_visa <- sevis_data_download_initial |> 
+  filter(!is.na(visa_issuance_date))
+
+sevis_data_download_active <- sevis_data_download |> 
+  filter(sevis_status == 'ACTIVE')
+
+sevis_data_download_completed <- sevis_data_download |> 
+  filter(sevis_status == 'COMPLETED')
+
+active_count <- sevis_data_download_active |> 
+  select(country = country_of_citizenship) |> 
+  group_by(country) |>  
+  summarise(a_count = n()) |> 
+  left_join(sevis_country_codes, by = c('country' = 'country_description'))
+
+initial_count <- sevis_data_download_initial |> 
+  select(country = country_of_citizenship) |> 
+  group_by(country) |>  
+  summarise(i_count = n()) |> 
+  left_join(sevis_country_codes, by = c('country' = 'country_description'))
+
+initialv_count <- sevis_data_download_initial_visa |> 
+  select(country = country_of_citizenship) |> 
+  group_by(country) |>  
+  summarise(v_count = n()) |> 
+  left_join(sevis_country_codes, by = c('country' = 'country_description'))
+
+all_count <- active_count |> 
+  full_join(initial_count, by = c("country_code", "country")) |> 
+  full_join(initialv_count, by = c("country_code", "country"))
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+world <- world %>% 
+  left_join(all_count, by = c("fips_10" = "country_code"))
+
+```
+```{r}
+#| label: world-map-setup
+#| message: false
+#| warning: false
+mag_pal <- colorBin("inferno", domain = 1:8, bins = c(0:5, 8))
+
+world_map <- subset(world, sov_a3 != 'ATA') |> 
+  leaflet() |> 
+  setView(lng = 0, lat = 42.3601, zoom = 2) |> 
+  # addTiles() |>
+  # addProviderTiles("Esri.WorldGrayCanvas") |> 
+  addPolygons( 
+    weight = 1,
+    color = "white",
+    fillColor = ~colorNumeric("cividis", a_count)(a_count),
+    fillOpacity = 0.7,
+    smoothFactor = 0.2,
+    label = ~paste(world$name,
+                   "Active Count:",
+                   world$a_count,
+                   "Initial Count:",
+                   world$i_count,
+                   "Visa Count:",
+                   world$v_count))
+
+```
+
+```{r}
+#| label: student-table-setup
+#| message: false
+#| warning: false
+fancy_table_count <- all_count |> 
+  select(-c("country_code")) |> 
+  arrange(desc(a_count)) |> 
+  mutate(a_count = as.character(a_count),
+         i_count = as.character(i_count),
+         v_count = as.character(v_count)) |> 
+  replace_na(list(a_count = '-', i_count = '-', v_count = '-')) |> 
+  gt() |> 
+  cols_label(
+    country = "Country of Citizenship",
+    a_count = "Active F-1",
+    i_count = "Initial F-1",
+    v_count = "Initial F-1 with Visa"
+  )
+
+```
+## Valueboxes Column {width="20%" .tabset}
+
+### Student Status #
+#### row
+```{r}
+#| component: valuebox
+#| title: Initial Students
+list(
+  icon = "chat-square-dots",
+  color = "secondary",
+  value = nrow(sevis_data_download_initial)
+)
+```
+#### row
+```{r}
+#| component: valuebox
+#| title: Initial Students with Visas
+list(
+  icon = "airplane",
+  color = "primary",
+  value = nrow(sevis_data_download_initial_visa)
+)
+```
+#### row
+```{r}
+#| component: valuebox
+#| title: Active Students
+list(
+  icon = "backpack-fill",
+  color = "secondary",
+  value = nrow(sevis_data_download_active)
+)
+```
+#### row
+```{r}
+#| component: valuebox
+#| title: Completed Students
+list(
+  icon = "check2-circle",
+  color = "primary",
+  value = nrow(sevis_data_download_completed)
+)
+```
+
+### CPT/OPT
+#### row
+```{r}
+#| component: valuebox
+#| title: CPT Approved
+list(
+  icon = "check-square-fill",
+  color = "secondary",
+  value = nrow(subset(sevis_data_download_active, cpt_approved == "Y"))
+)
+```
+#### row
+```{r}
+#| component: valuebox
+#| title: Post-Completion OPT Requested
+list(
+  icon = "clipboard-fill",
+  color = "primary",
+  value = nrow(subset(sevis_data_download_active, post_completion_opt_requested == "Y"))
+)
+```
+#### row
+```{r}
+#| component: valuebox
+#| title: Post-Completion OPT Approved
+list(
+  icon = "clipboard-check-fill",
+  color = "secondary",
+  value = nrow(subset(sevis_data_download_active, post_completion_opt_approved == "Y"))
+)
+```
+#### row
+```{r}
+#| component: valuebox
+#| title: STEM OPT Requested
+list(
+  icon = "emoji-expressionless-fill",
+  color = "primary",
+  value = nrow(subset(sevis_data_download_active, stem_opt_requested == "Y"))
+)
+```
+#### row
+```{r}
+#| component: valuebox
+#| title: STEM OPT Approved
+list(
+  icon = "emoji-sunglasses-fill",
+  color = "secondary",
+  value = nrow(subset(sevis_data_download_active, stem_opt_approved == "Y"))
+)
+```
+## Student Map Column {width="55%"}
+```{r}
+#| title: Active and Initial Student Countries
+world_map
+
+```
+## Student Table Column {width="25%"}
+```{r}
+fancy_table_count
+```
+
+
+
