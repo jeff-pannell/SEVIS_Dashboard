@@ -9,6 +9,7 @@ echo: false
 warning: false
 message: false
 ---
+
 ```{r}
 #| message: false
 #| label: load-packages
@@ -25,6 +26,7 @@ library(rnaturalearthdata)
 library(arrow)
 library(janitor)
 ```
+
 ```{r}
 #| label: load-prep-data
 #| message: false
@@ -78,6 +80,7 @@ world <- world %>%
   left_join(all_count, by = c("fips_10" = "country_code"))
 
 ```
+
 ```{r}
 #| label: world-map-setup
 #| message: false
@@ -125,10 +128,13 @@ fancy_table_count <- all_count |>
   )
 
 ```
-## Valueboxes Column {width="20%" .tabset}
 
-### Student Status #
+## Valueboxes Column {.tabset width="20%"}
+
+### Student Status
+
 #### row
+
 ```{r}
 #| component: valuebox
 #| title: Initial Students
@@ -138,7 +144,9 @@ list(
   value = nrow(sevis_data_download_initial)
 )
 ```
+
 #### row
+
 ```{r}
 #| component: valuebox
 #| title: Initial Students with Visas
@@ -148,7 +156,9 @@ list(
   value = nrow(sevis_data_download_initial_visa)
 )
 ```
+
 #### row
+
 ```{r}
 #| component: valuebox
 #| title: Active Students
@@ -158,7 +168,9 @@ list(
   value = nrow(sevis_data_download_active)
 )
 ```
+
 #### row
+
 ```{r}
 #| component: valuebox
 #| title: Completed Students
@@ -170,7 +182,9 @@ list(
 ```
 
 ### CPT/OPT
+
 #### row
+
 ```{r}
 #| component: valuebox
 #| title: CPT Approved
@@ -180,7 +194,9 @@ list(
   value = nrow(subset(sevis_data_download_active, cpt_approved == "Y"))
 )
 ```
+
 #### row
+
 ```{r}
 #| component: valuebox
 #| title: Post-Completion OPT Requested
@@ -190,7 +206,9 @@ list(
   value = nrow(subset(sevis_data_download_active, post_completion_opt_requested == "Y"))
 )
 ```
+
 #### row
+
 ```{r}
 #| component: valuebox
 #| title: Post-Completion OPT Approved
@@ -200,7 +218,9 @@ list(
   value = nrow(subset(sevis_data_download_active, post_completion_opt_approved == "Y"))
 )
 ```
+
 #### row
+
 ```{r}
 #| component: valuebox
 #| title: STEM OPT Requested
@@ -210,7 +230,9 @@ list(
   value = nrow(subset(sevis_data_download_active, stem_opt_requested == "Y"))
 )
 ```
+
 #### row
+
 ```{r}
 #| component: valuebox
 #| title: STEM OPT Approved
@@ -220,16 +242,17 @@ list(
   value = nrow(subset(sevis_data_download_active, stem_opt_approved == "Y"))
 )
 ```
+
 ## Student Map Column {width="55%"}
+
 ```{r}
 #| title: Active and Initial Student Countries
 world_map
 
 ```
+
 ## Student Table Column {width="25%"}
+
 ```{r}
 fancy_table_count
 ```
-
-
-
