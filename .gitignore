@@ -1,0 +1,12 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+gitignore.txt
+/.quarto/
+.Rdata
+.httr-oauth
+.DS_Store
+.quarto
+sevis_random_functions.R
+SEVIS_Dashboard.qmd
